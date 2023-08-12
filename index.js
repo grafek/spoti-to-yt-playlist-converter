@@ -3,14 +3,14 @@ const querystring = require("querystring");
 const SpotifyWebApi = require("spotify-web-api-node");
 const { google } = require("googleapis");
 const axios = require("axios");
-const readline = require("readline").createInterface({
+const rl = require("readline").createInterface({
   input: process.stdin,
   output: process.stdout,
 });
+const opn = require("opn");
 require("dotenv").config();
 
 const app = express();
-const port = 3000;
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
@@ -33,86 +33,171 @@ const youtubeOAuth2Client = new google.auth.OAuth2(
   YOUTUBE_REDIRECT_URI
 );
 
-app.get("/", async (req, res) => {
-  try {
-    readline.question(
-      "Enter Spotify Access Token: ",
-      async (spotifyAccessToken) => {
-        readline.question(
-          "Enter YouTube Access Token: ",
-          async (youtubeAccessToken) => {
-            readline.question(
-              "Enter YouTube Refresh Token: ",
-              async (youtubeRefreshToken) => {
-                spotifyApi.setAccessToken(spotifyAccessToken);
-                youtubeOAuth2Client.setCredentials({
-                  access_token: youtubeAccessToken,
-                  refresh_token: youtubeRefreshToken,
-                });
-                readline.question(
-                  "Enter Spotify Playlist ID: ",
-                  async (spotifyPlaylistId) => {
-                    readline.question(
-                      "Enter YouTube Playlist ID: ",
-                      async (youtubePlaylistId) => {
-                        try {
-                          const playlistTracks =
-                            await spotifyApi.getPlaylistTracks(
-                              spotifyPlaylistId,
-                              {
-                                fields:
-                                  "items(track(name,artists(name))),total",
-                              }
-                            );
+async function getAccessTokensAndPlaylistIds() {
+  return new Promise((resolve) => {
+    rl.question("Enter Spotify Access Token: ", (spotifyAccessToken) => {
+      rl.question("Enter YouTube Access Token: ", (youtubeAccessToken) => {
+        rl.question("Enter YouTube Refresh Token: ", (youtubeRefreshToken) => {
+          rl.question("Enter Spotify Playlist ID: ", (spotifyPlaylistId) => {
+            rl.question("Enter YouTube Playlist ID: ", (youtubePlaylistId) => {
+              rl.close();
+              resolve({
+                spotifyAccessToken,
+                youtubeAccessToken,
+                youtubeRefreshToken,
+                spotifyPlaylistId,
+                youtubePlaylistId,
+              });
+            });
+          });
+        });
+      });
+    });
+  });
+}
 
-                          const youtube = google.youtube({
-                            version: "v3",
-                            auth: youtubeOAuth2Client,
-                          });
+async function convertAndAddTracksToYouTube(playlistTracks, youtubePlaylistId) {
+  const youtube = google.youtube({
+    version: "v3",
+    auth: youtubeOAuth2Client,
+  });
 
-                          for (const track of playlistTracks.body.items) {
-                            const searchQuery = `${track.track.name} ${track.track.artists[0].name}`;
-                            const searchResponse = await youtube.search.list({
-                              q: searchQuery,
-                              part: "snippet",
-                              maxResults: 1,
-                            });
+  for (const track of playlistTracks) {
+    const searchQuery = `${track.name} ${track.artists[0].name}`;
+    const videoId = await searchAndRetrieveVideoId(youtube, searchQuery);
 
-                            if (searchResponse.data.items.length > 0) {
-                              const videoId =
-                                searchResponse.data.items[0].id.videoId;
-
-                              await youtube.playlistItems.insert({
-                                part: "snippet",
-                                resource: {
-                                  snippet: {
-                                    playlistId: youtubePlaylistId,
-                                    resourceId: {
-                                      kind: "youtube#video",
-                                      videoId: videoId,
-                                    },
-                                  },
-                                },
-                              });
-                            }
-                          }
-
-                          readline.close();
-                          res.send("Playlist conversion successful");
-                        } catch (error) {
-                          console.error("Error converting playlist:", error);
-                          res.status(500).send("Error");
-                        }
-                      }
-                    );
-                  }
-                );
-              }
-            );
-          }
+    if (videoId) {
+      try {
+        await addVideoToYouTubePlaylistWithRetry(
+          youtube,
+          videoId,
+          youtubePlaylistId
         );
+      } catch (error) {
+        console.error(`Error adding video ${videoId} to playlist:`, error);
       }
-    );
+    }
+  }
+}
+
+async function addVideoToYouTubePlaylistWithRetry(
+  youtube,
+  videoId,
+  youtubePlaylistId
+) {
+  const maxRetries = 3;
+  let currentRetry = 0;
+
+  while (currentRetry < maxRetries) {
+    try {
+      await addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId);
+      console.log(`Added video ${videoId} to the playlist`);
+      return;
+    } catch (error) {
+      console.error(
+        `Error adding video ${videoId} to playlist (Attempt ${
+          currentRetry + 1
+        }/${maxRetries}):`,
+        error
+      );
+      currentRetry++;
+    }
+  }
+
+  console.error(
+    `Failed to add video ${videoId} to the playlist after ${maxRetries} attempts`
+  );
+}
+
+async function addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId) {
+  const playlistItemsResponse = await youtube.playlistItems.list({
+    part: "snippet",
+    playlistId: youtubePlaylistId,
+    videoId: videoId,
+  });
+
+  if (playlistItemsResponse.data.items.length > 0) {
+    console.log(`Video ${videoId} already exists in the playlist`);
+    return;
+  }
+
+  await youtube.playlistItems.insert({
+    part: "snippet",
+    resource: {
+      snippet: {
+        playlistId: youtubePlaylistId,
+        resourceId: {
+          kind: "youtube#video",
+          videoId: videoId,
+        },
+      },
+    },
+  });
+
+  console.log(`Added video ${videoId} to the playlist`);
+}
+
+async function getSpotifyPlaylistTracks(spotifyPlaylistId) {
+  const response = await spotifyApi.getPlaylistTracks(spotifyPlaylistId, {
+    fields: "items(track(name,artists(name))),total",
+  });
+
+  return response.body.items.map((item) => item.track);
+}
+
+async function searchAndRetrieveVideoId(youtube, searchQuery) {
+  const searchResponse = await youtube.search.list({
+    q: searchQuery,
+    part: "snippet",
+    maxResults: 1,
+  });
+
+  if (searchResponse.data.items.length > 0) {
+    return searchResponse.data.items[0].id.videoId;
+  }
+
+  return null;
+}
+
+async function addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId) {
+  await youtube.playlistItems.insert({
+    part: "snippet",
+    resource: {
+      snippet: {
+        playlistId: youtubePlaylistId,
+        resourceId: {
+          kind: "youtube#video",
+          videoId: videoId,
+        },
+      },
+    },
+  });
+}
+
+app.get("/", async (req, res) => {
+  opn("http://localhost:3000/youtube");
+  opn("http://localhost:3000/spotify");
+  try {
+    const {
+      spotifyAccessToken,
+      youtubeAccessToken,
+      youtubeRefreshToken,
+      spotifyPlaylistId,
+      youtubePlaylistId,
+    } = await getAccessTokensAndPlaylistIds();
+
+    spotifyApi.setAccessToken(spotifyAccessToken);
+    youtubeOAuth2Client.setCredentials({
+      access_token: youtubeAccessToken,
+      refresh_token: youtubeRefreshToken,
+    });
+
+    const playlistTracks = await getSpotifyPlaylistTracks(spotifyPlaylistId);
+
+    console.log(playlistTracks);
+    await convertAndAddTracksToYouTube(playlistTracks, youtubePlaylistId);
+
+    res.send("Playlist conversion successful");
   } catch (error) {
     console.error("Error converting playlist:", error);
     res.status(500).send("Error");
@@ -174,5 +259,5 @@ app.get("/youtube-callback", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on port 3000`);
 });

@@ -1,18 +1,18 @@
 import express from "express";
-import querystring from "querystring";
 import SpotifyWebApi from "spotify-web-api-node";
 import { google } from "googleapis";
-import axios from "axios";
-import readline from "readline";
-import opn from "opn";
+import cors from "cors";
 import "dotenv/config";
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-
 const app = express();
+app.use(express.json());
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+  })
+);
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
@@ -20,10 +20,6 @@ const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
 
 const YOUTUBE_CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
 const YOUTUBE_CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
-const YOUTUBE_REDIRECT_URI = process.env.YOUTUBE_REDIRECT_URI;
-const YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube"];
-
-const port = 3000;
 
 const spotifyApi = new SpotifyWebApi({
   clientId: SPOTIFY_CLIENT_ID,
@@ -31,47 +27,40 @@ const spotifyApi = new SpotifyWebApi({
   redirectUri: SPOTIFY_REDIRECT_URI,
 });
 
-const youtubeOAuth2Client = new google.auth.OAuth2(
+const googleOauth2Client = new google.auth.OAuth2(
   YOUTUBE_CLIENT_ID,
   YOUTUBE_CLIENT_SECRET,
-  YOUTUBE_REDIRECT_URI
+  "postmessage"
 );
 
-async function getAccessTokensAndPlaylistIds() {
-  return new Promise<{
-    spotifyAccessToken: string;
-    youtubeAccessToken: string;
-    youtubeRefreshToken: string;
-    spotifyPlaylistId: string;
-    youtubePlaylistId: string;
-  }>((resolve) => {
-    rl.question("Enter Spotify Access Token: ", (spotifyAccessToken) => {
-      rl.question("Enter YouTube Access Token: ", (youtubeAccessToken) => {
-        rl.question("Enter YouTube Refresh Token: ", (youtubeRefreshToken) => {
-          rl.question("Enter Spotify Playlist ID: ", (spotifyPlaylistId) => {
-            rl.question("Enter YouTube Playlist ID: ", (youtubePlaylistId) => {
-              rl.close();
-              resolve({
-                spotifyAccessToken,
-                youtubeAccessToken,
-                youtubeRefreshToken,
-                spotifyPlaylistId,
-                youtubePlaylistId,
-              });
-            });
-          });
-        });
-      });
-    });
+const youtube = google.youtube({
+  version: "v3",
+  auth: googleOauth2Client,
+});
+
+async function getSpotifyPlaylistTracks(spotifyPlaylistId) {
+  const response = await spotifyApi.getPlaylistTracks(spotifyPlaylistId, {
+    fields: "items(track(name,artists(name))),total",
   });
+
+  return response.body.items.map((item) => item.track);
+}
+
+async function searchAndRetrieveVideoId(youtube, searchQuery) {
+  const searchResponse = await youtube.search.list({
+    q: searchQuery,
+    part: "snippet",
+    maxResults: 1,
+  });
+
+  if (searchResponse.data.items.length) {
+    return searchResponse.data.items[0].id.videoId;
+  }
+
+  return null;
 }
 
 async function convertAndAddTracksToYouTube(playlistTracks, youtubePlaylistId) {
-  const youtube = google.youtube({
-    version: "v3",
-    auth: youtubeOAuth2Client,
-  });
-
   for (const track of playlistTracks) {
     const searchQuery = `${track.name} ${track.artists[0].name}`;
     const videoId = await searchAndRetrieveVideoId(youtube, searchQuery);
@@ -147,114 +136,39 @@ async function addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId) {
   console.log(`Added video ${videoId} to the playlist`);
 }
 
-async function getSpotifyPlaylistTracks(spotifyPlaylistId) {
-  const response = await spotifyApi.getPlaylistTracks(spotifyPlaylistId, {
-    fields: "items(track(name,artists(name))),total",
-  });
+app.post("/auth/google", async (req, res) => {
+  const { tokens } = await googleOauth2Client.getToken(req.body.code);
+  res.json(tokens);
+});
 
-  return response.body.items.map((item) => item.track);
-}
-
-async function searchAndRetrieveVideoId(youtube, searchQuery) {
-  const searchResponse = await youtube.search.list({
-    q: searchQuery,
-    part: "snippet",
-    maxResults: 1,
-  });
-
-  if (searchResponse.data.items.length) {
-    return searchResponse.data.items[0].id.videoId;
-  }
-
-  return null;
-}
-
-app.get("/", async (req, res) => {
-  opn("http://localhost:3000/youtube");
-  opn("http://localhost:3000/spotify");
+app.post("/convert", async (req, res) => {
   try {
-    const {
-      spotifyAccessToken,
-      youtubeAccessToken,
-      youtubeRefreshToken,
-      spotifyPlaylistId,
-      youtubePlaylistId,
-    } = await getAccessTokensAndPlaylistIds();
-
-    spotifyApi.setAccessToken(spotifyAccessToken);
-    youtubeOAuth2Client.setCredentials({
-      access_token: youtubeAccessToken,
-      refresh_token: youtubeRefreshToken,
+    console.log(req.body);
+    spotifyApi.setAccessToken(req.body.spotifyToken);
+    googleOauth2Client.setCredentials({
+      access_token: req.body.googleAccessToken,
+      refresh_token: req.body.googleRefreshToken,
     });
 
-    const playlistTracks = await getSpotifyPlaylistTracks(spotifyPlaylistId);
+    const playlistTracks = await getSpotifyPlaylistTracks(
+      req.body.spotifyPlaylistId
+    );
 
     console.log(playlistTracks);
-    await convertAndAddTracksToYouTube(playlistTracks, youtubePlaylistId);
+    await convertAndAddTracksToYouTube(
+      playlistTracks,
+      req.body.youtubePlaylistId
+    );
+    const youtubePlaylist = `https://www.youtube.com/playlist?list=${req.body.youtubePlaylistId}`;
 
     res.send("Playlist conversion successful");
+    res.json(youtubePlaylist);
   } catch (error) {
     console.error("Error converting playlist:", error);
     res.status(500).send("Error");
   }
 });
 
-app.get("/spotify", (req, res) => {
-  const authQueryParams = querystring.stringify({
-    response_type: "code",
-    client_id: SPOTIFY_CLIENT_ID,
-    scope: "user-read-private user-read-email",
-    redirect_uri: SPOTIFY_REDIRECT_URI,
-  });
-  const authURL = `https://accounts.spotify.com/authorize?${authQueryParams}`;
-  res.redirect(authURL);
-});
-
-app.get("/spotify-callback", async (req, res) => {
-  const code = req.query.code;
-
-  const tokenParams = querystring.stringify({
-    grant_type: "authorization_code",
-    code: code as string,
-    redirect_uri: SPOTIFY_REDIRECT_URI,
-    client_id: SPOTIFY_CLIENT_ID,
-    client_secret: SPOTIFY_CLIENT_SECRET,
-  });
-  try {
-    const response = await axios.post(
-      "https://accounts.spotify.com/api/token",
-      tokenParams
-    );
-    const accessToken = response.data.access_token;
-    const refreshToken = response.data.refresh_token;
-
-    res.send(`Access Token: ${accessToken}<br>Refresh Token: ${refreshToken}`);
-  } catch (error) {
-    console.error("Error exchanging code for token:", error);
-    res.status(500).send("Error");
-  }
-});
-
-app.get("/youtube", (req, res) => {
-  const authURL = youtubeOAuth2Client.generateAuthUrl({
-    access_type: "offline",
-    scope: YOUTUBE_SCOPES,
-  });
-
-  res.redirect(authURL);
-});
-
-app.get("/youtube-callback", async (req, res) => {
-  const { tokens } = await youtubeOAuth2Client.getToken(
-    req.query.code as string
-  );
-  youtubeOAuth2Client.setCredentials(tokens);
-
-  res.send(
-    `Access Token: ${tokens.access_token}<br>Refresh Token: ${tokens.refresh_token}`
-  );
-});
-
-app.listen(port, () => {
+app.listen(3000, () => {
   console.log(`Server is running on port 3000`);
 });

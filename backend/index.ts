@@ -21,6 +21,9 @@ const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
 const YOUTUBE_CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
 const YOUTUBE_CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
 
+const SPOTIFY_PLAYLIST_REGEX = /playlist\/([a-zA-Z0-9]+)$/;
+const YOUTUBE_PLAYLIST_REGEX = /list=([a-zA-Z0-9_-]+)/;
+
 const spotifyApi = new SpotifyWebApi({
   clientId: SPOTIFY_CLIENT_ID,
   clientSecret: SPOTIFY_CLIENT_SECRET,
@@ -133,7 +136,6 @@ async function addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId) {
     },
   });
 
-  console.log(`Added video ${videoId} to the playlist`);
 }
 
 app.post("/auth/google", async (req, res) => {
@@ -143,29 +145,39 @@ app.post("/auth/google", async (req, res) => {
 
 app.post("/convert", async (req, res) => {
   try {
-    console.log(req.body);
+    const youtubeMatch = req.body.youtubePlaylistLink.match(
+      YOUTUBE_PLAYLIST_REGEX
+    );
+    const spotifyMatch = req.body.spotifyPlaylistLink.match(
+      SPOTIFY_PLAYLIST_REGEX
+    );
+
     spotifyApi.setAccessToken(req.body.spotifyToken);
     googleOauth2Client.setCredentials({
       access_token: req.body.googleAccessToken,
       refresh_token: req.body.googleRefreshToken,
     });
 
-    const playlistTracks = await getSpotifyPlaylistTracks(
-      req.body.spotifyPlaylistId
-    );
+    if (youtubeMatch && youtubeMatch[1] && spotifyMatch && spotifyMatch[1]) {
+      const spotifyPlaylistId = spotifyMatch[1];
+      const youtubePlaylistId = youtubeMatch[1];
+      const spotifyPlaylistTracks = await getSpotifyPlaylistTracks(
+        spotifyPlaylistId
+      );
+      await convertAndAddTracksToYouTube(
+        spotifyPlaylistTracks,
+        youtubePlaylistId
+      );
+      const youtubePlaylist = `https://www.youtube.com/playlist?list=${req.body.youtubePlaylistId}`;
 
-    console.log(playlistTracks);
-    await convertAndAddTracksToYouTube(
-      playlistTracks,
-      req.body.youtubePlaylistId
-    );
-    const youtubePlaylist = `https://www.youtube.com/playlist?list=${req.body.youtubePlaylistId}`;
-
-    res.send("Playlist conversion successful");
-    res.json(youtubePlaylist);
+      res.send("Playlist conversion successful");
+      res.json(youtubePlaylist);
+    } else {
+      res.status(400).send("Invalid links!");
+    }
   } catch (error) {
     console.error("Error converting playlist:", error);
-    res.status(500).send("Error");
+    res.status(500).send("Unexpected error!");
   }
 });
 

@@ -15,7 +15,6 @@ const GoogleAuth = ({ setGoogleAccessToken, setGoogleRefreshToken }: Props) => {
           code,
         }
       );
-      console.log(res.data);
       setGoogleAccessToken(res.data.access_token);
       setGoogleRefreshToken(res.data.refresh_token);
     },
@@ -23,9 +22,13 @@ const GoogleAuth = ({ setGoogleAccessToken, setGoogleRefreshToken }: Props) => {
   });
 
   return (
-    <div>
-      <button onClick={() => googleLogin()}>Log in with google</button>
-    </div>
+    <button
+      className="flex border border-dark-primary items-center justify-center flex-1 gap-2 bg-slate-100 rounded shadow px-4 py-2 text-black font-medium md:w-fit"
+      onClick={() => googleLogin()}
+    >
+      <img src="/google.svg" className="w-6 h-6" />
+      Log in with google
+    </button>
   );
 };
 

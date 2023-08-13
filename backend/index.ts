@@ -1,14 +1,16 @@
-const express = require("express");
-const querystring = require("querystring");
-const SpotifyWebApi = require("spotify-web-api-node");
-const { google } = require("googleapis");
-const axios = require("axios");
-const rl = require("readline").createInterface({
+import express from "express";
+import querystring from "querystring";
+import SpotifyWebApi from "spotify-web-api-node";
+import { google } from "googleapis";
+import axios from "axios";
+import readline from "readline";
+import opn from "opn";
+import "dotenv/config";
+
+const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
 });
-const opn = require("opn");
-require("dotenv").config();
 
 const app = express();
 
@@ -36,7 +38,13 @@ const youtubeOAuth2Client = new google.auth.OAuth2(
 );
 
 async function getAccessTokensAndPlaylistIds() {
-  return new Promise((resolve) => {
+  return new Promise<{
+    spotifyAccessToken: string;
+    youtubeAccessToken: string;
+    youtubeRefreshToken: string;
+    spotifyPlaylistId: string;
+    youtubePlaylistId: string;
+  }>((resolve) => {
     rl.question("Enter Spotify Access Token: ", (spotifyAccessToken) => {
       rl.question("Enter YouTube Access Token: ", (youtubeAccessToken) => {
         rl.question("Enter YouTube Refresh Token: ", (youtubeRefreshToken) => {
@@ -207,7 +215,7 @@ app.get("/spotify-callback", async (req, res) => {
 
   const tokenParams = querystring.stringify({
     grant_type: "authorization_code",
-    code: code,
+    code: code as string,
     redirect_uri: SPOTIFY_REDIRECT_URI,
     client_id: SPOTIFY_CLIENT_ID,
     client_secret: SPOTIFY_CLIENT_SECRET,
@@ -237,7 +245,9 @@ app.get("/youtube", (req, res) => {
 });
 
 app.get("/youtube-callback", async (req, res) => {
-  const { tokens } = await youtubeOAuth2Client.getToken(req.query.code);
+  const { tokens } = await youtubeOAuth2Client.getToken(
+    req.query.code as string
+  );
   youtubeOAuth2Client.setCredentials(tokens);
 
   res.send(

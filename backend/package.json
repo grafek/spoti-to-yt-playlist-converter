@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Transfer a Spotify playlist to a YouTube playlist",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
-    "start": "node index.js"
+    "start": "tsc && node dist/index.js"
   },
   "author": "grafek",
   "license": "MIT",
@@ -14,8 +15,15 @@
     "express": "^4.18.2",
     "googleapis": "^86.0.0",
     "opn": "^6.0.0",
-    "redline": "^1.0.1",
     "spotify-web-api-node": "^5.0.2",
     "youtube-api": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.4.10",
+    "@typescript-eslint/eslint-plugin": "^6.3.0",
+    "@typescript-eslint/parser": "^6.3.0",
+    "eslint": "^8.47.0",
+    "typescript": "^5.1.6"
   }
 }

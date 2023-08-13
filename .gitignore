@@ -1,3 +1,8 @@
 node_modules
 
+# local env variables
 .env
+
+# compiled js files
+backend/dist/index.js
+backend/dist/index.js.map

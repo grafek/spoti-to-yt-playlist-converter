@@ -21,6 +21,8 @@ const YOUTUBE_CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
 const YOUTUBE_REDIRECT_URI = process.env.YOUTUBE_REDIRECT_URI;
 const YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube"];
 
+const port = 3000;
+
 const spotifyApi = new SpotifyWebApi({
   clientId: SPOTIFY_CLIENT_ID,
   clientSecret: SPOTIFY_CLIENT_SECRET,
@@ -152,26 +154,11 @@ async function searchAndRetrieveVideoId(youtube, searchQuery) {
     maxResults: 1,
   });
 
-  if (searchResponse.data.items.length > 0) {
+  if (searchResponse.data.items.length) {
     return searchResponse.data.items[0].id.videoId;
   }
 
   return null;
-}
-
-async function addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId) {
-  await youtube.playlistItems.insert({
-    part: "snippet",
-    resource: {
-      snippet: {
-        playlistId: youtubePlaylistId,
-        resourceId: {
-          kind: "youtube#video",
-          videoId: videoId,
-        },
-      },
-    },
-  });
 }
 
 app.get("/", async (req, res) => {

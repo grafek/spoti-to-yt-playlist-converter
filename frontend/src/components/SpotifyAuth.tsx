@@ -30,7 +30,6 @@ export default function SpotifyAuth({ setSpotifyToken }: Props) {
         qs.stringify(data),
         headers
       );
-      console.log(response.data.access_token);
       setSpotifyToken(response.data.access_token);
       return response.data.access_token;
     } catch (error) {
@@ -39,8 +38,12 @@ export default function SpotifyAuth({ setSpotifyToken }: Props) {
   };
 
   return (
-    <div>
-      <button onClick={getAuth}>Authenticate with Spotify</button>
-    </div>
+    <button
+      className="flex items-center border border-dark-primary justify-center flex-1 gap-2 bg-black rounded shadow px-4 py-2 font-medium md:w-fit"
+      onClick={getAuth}
+    >
+      <img src="/spotify.svg" className="w-6 h-6" />
+      Log in with Spotify
+    </button>
   );
 }

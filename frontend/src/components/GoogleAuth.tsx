@@ -1,9 +1,10 @@
 import { useGoogleLogin } from "@react-oauth/google";
 import axios from "axios";
+import { setItem } from "../helpers";
 
 type Props = {
-  setGoogleAccessToken: React.Dispatch<React.SetStateAction<string>>;
-  setGoogleRefreshToken: React.Dispatch<React.SetStateAction<string>>;
+  setGoogleAccessToken: React.Dispatch<React.SetStateAction<string | null>>;
+  setGoogleRefreshToken: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 const GoogleAuth = ({ setGoogleAccessToken, setGoogleRefreshToken }: Props) => {
@@ -17,6 +18,8 @@ const GoogleAuth = ({ setGoogleAccessToken, setGoogleRefreshToken }: Props) => {
       );
       setGoogleAccessToken(res.data.access_token);
       setGoogleRefreshToken(res.data.refresh_token);
+      setItem("youtube-access", res.data.access_token);
+      setItem("youtube-refresh", res.data.refresh_token);
     },
     flow: "auth-code",
   });

@@ -2,21 +2,32 @@ import SpotifyAuth from "./components/SpotifyAuth";
 import { useState } from "react";
 import GoogleAuth from "./components/GoogleAuth";
 import axios from "axios";
+import { getItem } from "./helpers";
 
 function App() {
-  const [spotifyToken, setSpotifyToken] = useState("");
-  const [googleAccessToken, setGoogleAccessToken] = useState("");
-  const [googleRefreshToken, setGoogleRefreshToken] = useState("");
+  const [spotifyToken, setSpotifyToken] = useState<string | null>(
+    getItem("spotify-token")
+  );
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(
+    getItem("google-access")
+  );
+  const [googleRefreshToken, setGoogleRefreshToken] = useState<string | null>(
+    getItem("google-refresh")
+  );
   const [spotifyPlaylist, setSpotifyPlaylist] = useState("");
   const [youtubePlaylist, setYoutubePlaylist] = useState("");
   const [error, setError] = useState("");
   const [isConverting, setIsConverting] = useState(false);
+  const [response, setResponse] = useState<{
+    message: string;
+    youtubePlaylist?: string;
+  }>();
 
   const body = {
     spotifyToken,
     googleAccessToken,
     googleRefreshToken,
-    youtubePlaylistLink: youtubePlaylist,
+    youtubePlaylist: youtubePlaylist,
     spotifyPlaylistLink: spotifyPlaylist,
   };
 
@@ -40,11 +51,12 @@ function App() {
       setIsConverting(true);
       axios
         .post(`${import.meta.env.VITE_API_URL}/convert`, body)
-        .catch((e) => setError(e.message));
+        .then((res) => setResponse(res.data))
+        .catch((e) => setError(e.message))
+        .finally(() => setIsConverting(false));
       return;
     }
     setError("Please provide playlists IDs for both services.");
-    setIsConverting(false);
   };
 
   return (
@@ -104,9 +116,18 @@ function App() {
           authMessage
         )}
         {error ? (
-          <p aria-invalid className="text-youtube text-sm py-4">
+          <p aria-invalid className="text-youtube text-sm relative top-8">
             {error}
           </p>
+        ) : null}
+        {response ? (
+          <a
+            href={response.youtubePlaylist}
+            target="_blank"
+            className="text-sm relative top-8 underline decoration-youtube underline-offset-4"
+          >
+            {response.message}
+          </a>
         ) : null}
       </main>
     </>

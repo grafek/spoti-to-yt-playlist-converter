@@ -9,7 +9,7 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.BACKEND_URL,
     methods: ["GET", "POST"],
   })
 );
@@ -115,7 +115,7 @@ async function addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId) {
   const playlistItemsResponse = await youtube.playlistItems.list({
     part: "snippet",
     playlistId: youtubePlaylistId,
-    videoId: videoId,
+    videoId,
   });
 
   if (playlistItemsResponse.data.items.length > 0) {
@@ -135,7 +135,6 @@ async function addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId) {
       },
     },
   });
-
 }
 
 app.post("/auth/google", async (req, res) => {
@@ -170,8 +169,11 @@ app.post("/convert", async (req, res) => {
       );
       const youtubePlaylist = `https://www.youtube.com/playlist?list=${req.body.youtubePlaylistId}`;
 
-      res.send("Playlist conversion successful");
-      res.json(youtubePlaylist);
+      res.status(200).send({
+        youtubePlaylist,
+        message:
+          "Playlist conversion successful, check your playlists with new tracks from spotify!",
+      });
     } else {
       res.status(400).send("Invalid links!");
     }

@@ -1,8 +1,9 @@
 import qs from "qs";
 import axios from "axios";
+import { setItem } from "../helpers";
 
 type Props = {
-  setSpotifyToken: React.Dispatch<React.SetStateAction<string>>;
+  setSpotifyToken: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 export default function SpotifyAuth({ setSpotifyToken }: Props) {
@@ -31,6 +32,7 @@ export default function SpotifyAuth({ setSpotifyToken }: Props) {
         headers
       );
       setSpotifyToken(response.data.access_token);
+      setItem("spotify-token", response.data.access_token);
       return response.data.access_token;
     } catch (error) {
       console.log(error);

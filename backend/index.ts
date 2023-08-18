@@ -93,7 +93,6 @@ async function addVideoToYouTubePlaylistWithRetry(
   while (currentRetry < maxRetries) {
     try {
       await addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId);
-      console.log(`Added video ${videoId} to the playlist`);
       return;
     } catch (error) {
       console.error(
@@ -135,6 +134,7 @@ async function addVideoToYouTubePlaylist(youtube, videoId, youtubePlaylistId) {
       },
     },
   });
+  console.log(`Added video ${videoId} to the playlist`);
 }
 
 app.post("/auth/google", async (req, res) => {
@@ -144,12 +144,8 @@ app.post("/auth/google", async (req, res) => {
 
 app.post("/convert", async (req, res) => {
   try {
-    const youtubeMatch = req.body.youtubePlaylistLink.match(
-      YOUTUBE_PLAYLIST_REGEX
-    );
-    const spotifyMatch = req.body.spotifyPlaylistLink.match(
-      SPOTIFY_PLAYLIST_REGEX
-    );
+    const youtubeMatch = req.body.youtubePlaylist.match(YOUTUBE_PLAYLIST_REGEX);
+    const spotifyMatch = req.body.spotifyPlaylist.match(SPOTIFY_PLAYLIST_REGEX);
 
     spotifyApi.setAccessToken(req.body.spotifyToken);
     googleOauth2Client.setCredentials({

@@ -2,17 +2,17 @@ import SpotifyAuth from "./components/SpotifyAuth";
 import { useState } from "react";
 import GoogleAuth from "./components/GoogleAuth";
 import axios from "axios";
-import { getItem } from "./helpers";
+import Cookies from "js-cookie";
 
 function App() {
   const [spotifyToken, setSpotifyToken] = useState<string | null>(
-    getItem("spotify-token")
+    Cookies.get("spotify-token") ?? null
   );
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(
-    getItem("google-access")
+    Cookies.get("google-access") ?? null
   );
   const [googleRefreshToken, setGoogleRefreshToken] = useState<string | null>(
-    getItem("google-refresh")
+    Cookies.get("google-refresh") ?? null
   );
   const [spotifyPlaylist, setSpotifyPlaylist] = useState("");
   const [youtubePlaylist, setYoutubePlaylist] = useState("");
@@ -28,7 +28,7 @@ function App() {
     googleAccessToken,
     googleRefreshToken,
     youtubePlaylist: youtubePlaylist,
-    spotifyPlaylistLink: spotifyPlaylist,
+    spotifyPlaylist: spotifyPlaylist,
   };
 
   const providersToAuthenticate = [];

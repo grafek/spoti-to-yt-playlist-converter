@@ -14,25 +14,18 @@ app.use(
   })
 );
 
-const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
-const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI;
-
-const YOUTUBE_CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
-const YOUTUBE_CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
-
 const SPOTIFY_PLAYLIST_REGEX = /playlist\/([a-zA-Z0-9]+)$/;
 const YOUTUBE_PLAYLIST_REGEX = /list=([a-zA-Z0-9_-]+)/;
 
 const spotifyApi = new SpotifyWebApi({
-  clientId: SPOTIFY_CLIENT_ID,
-  clientSecret: SPOTIFY_CLIENT_SECRET,
-  redirectUri: SPOTIFY_REDIRECT_URI,
+  clientId: process.env.SPOTIFY_CLIENT_ID,
+  clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+  redirectUri: process.env.SPOTIFY_REDIRECT_URI,
 });
 
 const googleOauth2Client = new google.auth.OAuth2(
-  YOUTUBE_CLIENT_ID,
-  YOUTUBE_CLIENT_SECRET,
+  process.env.YOUTUBE_CLIENT_ID,
+  process.env.YOUTUBE_CLIENT_SECRET,
   "postmessage"
 );
 

@@ -5,10 +5,18 @@ import Cookies from "js-cookie";
 type Props = {
   setGoogleAccessToken: React.Dispatch<React.SetStateAction<string | null>>;
   setGoogleRefreshToken: React.Dispatch<React.SetStateAction<string | null>>;
+  setError: React.Dispatch<React.SetStateAction<string | undefined>>;
 };
 
-const GoogleAuth = ({ setGoogleAccessToken, setGoogleRefreshToken }: Props) => {
+const GoogleAuth = ({
+  setGoogleAccessToken,
+  setGoogleRefreshToken,
+  setError,
+}: Props) => {
   const googleLogin = useGoogleLogin({
+    onError: ({ error }) => {
+      setError(error);
+    },
     onSuccess: async ({ code }) => {
       const res = await axios.post(
         `${import.meta.env.VITE_API_URL}/auth/google`,

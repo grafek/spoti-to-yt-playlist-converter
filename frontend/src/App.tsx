@@ -16,12 +16,15 @@ function App() {
   );
   const [spotifyPlaylist, setSpotifyPlaylist] = useState("");
   const [youtubePlaylist, setYoutubePlaylist] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | undefined>();
   const [isConverting, setIsConverting] = useState(false);
-  const [response, setResponse] = useState<{
-    message: string;
-    youtubePlaylist?: string;
-  }>();
+  const [response, setResponse] = useState<
+    | {
+        message: string;
+        youtubePlaylist?: string;
+      }
+    | undefined
+  >();
 
   const body = {
     spotifyToken,
@@ -47,13 +50,19 @@ function App() {
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setResponse(undefined);
     if (youtubePlaylist && spotifyPlaylist) {
       setIsConverting(true);
       axios
         .post(`${import.meta.env.VITE_API_URL}/convert`, body)
-        .then((res) => setResponse(res.data))
+        .then((res) => {
+          setResponse(res.data);
+        })
         .catch((e) => setError(e.message))
         .finally(() => setIsConverting(false));
+
+      setSpotifyPlaylist("");
+      setYoutubePlaylist("");
       return;
     }
     setError("Please provide playlists IDs for both services.");
@@ -71,6 +80,7 @@ function App() {
             <GoogleAuth
               setGoogleAccessToken={setGoogleAccessToken}
               setGoogleRefreshToken={setGoogleRefreshToken}
+              setError={setError}
             />
           ) : null}
           {!spotifyToken ? (

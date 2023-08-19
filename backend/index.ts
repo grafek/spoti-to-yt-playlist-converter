@@ -163,7 +163,7 @@ app.post("/convert", async (req, res) => {
         spotifyPlaylistTracks,
         youtubePlaylistId
       );
-      const youtubePlaylist = `https://www.youtube.com/playlist?list=${req.body.youtubePlaylistId}`;
+      const youtubePlaylist = `https://www.youtube.com/playlist?list=${youtubePlaylistId}`;
 
       res.status(200).send({
         youtubePlaylist,

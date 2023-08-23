@@ -56,9 +56,9 @@ async function searchAndRetrieveVideoId(youtube, searchQuery) {
   return null;
 }
 
-async function convertAndAddTracksToYouTube(playlistTracks, youtubePlaylistId) {
+async function convertAndAddTracksToYouTube(playlistTracks, youtubePlaylistId, optionalQuery) {
   for (const track of playlistTracks) {
-    const searchQuery = `${track.name} ${track.artists[0].name}`;
+    const searchQuery = `${track.name} ${track.artists[0].name} ${optionalQuery}`;
     const videoId = await searchAndRetrieveVideoId(youtube, searchQuery);
 
     if (videoId) {
@@ -140,6 +140,8 @@ app.post("/convert", async (req, res) => {
     const youtubeMatch = req.body.youtubePlaylist.match(YOUTUBE_PLAYLIST_REGEX);
     const spotifyMatch = req.body.spotifyPlaylist.match(SPOTIFY_PLAYLIST_REGEX);
 
+    const optionalQuery = req.body.optionalQuery
+
     spotifyApi.setAccessToken(req.body.spotifyToken);
     googleOauth2Client.setCredentials({
       access_token: req.body.googleAccessToken,
@@ -154,7 +156,8 @@ app.post("/convert", async (req, res) => {
       );
       await convertAndAddTracksToYouTube(
         spotifyPlaylistTracks,
-        youtubePlaylistId
+        youtubePlaylistId,
+        optionalQuery
       );
       const youtubePlaylist = `https://www.youtube.com/playlist?list=${youtubePlaylistId}`;
 

@@ -9,7 +9,7 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: [process.env.FRONTEND_URL, process.env.BACKEND_URL],
     methods: ["GET", "POST"],
   })
 );
@@ -56,7 +56,11 @@ async function searchAndRetrieveVideoId(youtube, searchQuery) {
   return null;
 }
 
-async function convertAndAddTracksToYouTube(playlistTracks, youtubePlaylistId, optionalQuery) {
+async function convertAndAddTracksToYouTube(
+  playlistTracks,
+  youtubePlaylistId,
+  optionalQuery
+) {
   for (const track of playlistTracks) {
     const searchQuery = `${track.name} ${track.artists[0].name} ${optionalQuery}`;
     const videoId = await searchAndRetrieveVideoId(youtube, searchQuery);
@@ -140,7 +144,7 @@ app.post("/convert", async (req, res) => {
     const youtubeMatch = req.body.youtubePlaylist.match(YOUTUBE_PLAYLIST_REGEX);
     const spotifyMatch = req.body.spotifyPlaylist.match(SPOTIFY_PLAYLIST_REGEX);
 
-    const optionalQuery = req.body.optionalQuery
+    const optionalQuery = req.body.optionalQuery;
 
     spotifyApi.setAccessToken(req.body.spotifyToken);
     googleOauth2Client.setCredentials({

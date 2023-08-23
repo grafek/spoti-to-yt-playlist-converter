@@ -33,7 +33,7 @@ function App() {
     googleRefreshToken,
     youtubePlaylist: youtubePlaylist,
     spotifyPlaylist: spotifyPlaylist,
-    optionalQuery
+    optionalQuery,
   };
 
   const providersToAuthenticate = [];
@@ -53,7 +53,6 @@ function App() {
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setResponse(undefined);
-    console.log(body)
     if (youtubePlaylist && spotifyPlaylist) {
       setIsConverting(true);
       axios

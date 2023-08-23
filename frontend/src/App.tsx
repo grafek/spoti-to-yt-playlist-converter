@@ -16,6 +16,7 @@ function App() {
   );
   const [spotifyPlaylist, setSpotifyPlaylist] = useState("");
   const [youtubePlaylist, setYoutubePlaylist] = useState("");
+  const [optionalQuery, setOptionalQuery] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [isConverting, setIsConverting] = useState(false);
   const [response, setResponse] = useState<
@@ -32,6 +33,7 @@ function App() {
     googleRefreshToken,
     youtubePlaylist: youtubePlaylist,
     spotifyPlaylist: spotifyPlaylist,
+    optionalQuery
   };
 
   const providersToAuthenticate = [];
@@ -51,6 +53,7 @@ function App() {
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setResponse(undefined);
+    console.log(body)
     if (youtubePlaylist && spotifyPlaylist) {
       setIsConverting(true);
       axios
@@ -63,6 +66,7 @@ function App() {
 
       setSpotifyPlaylist("");
       setYoutubePlaylist("");
+      setOptionalQuery("");
       return;
     }
     setError("Please provide playlists IDs for both services.");
@@ -91,30 +95,44 @@ function App() {
           <form className="flex flex-col gap-2" onSubmit={onSubmit}>
             <label
               htmlFor="spotify-playlist-id"
-              className="flex flex-col text-sm gap-2  focus:border-transparent focus:ring-0"
-            >
-              Spotify playlist link
-              <input
-                id="spotify-playlist-id"
-                onFocus={() => setError("")}
-                value={spotifyPlaylist}
-                onChange={(e) => setSpotifyPlaylist(e.target.value)}
-                className="text-black rounded p-1 bg-white-primary border border-spotify"
-              />
-            </label>
+              className="flex text-sm gap-2 focus:border-transparent focus:ring-0"
+            />
+            <span>
+              Spotify playlist link<span className="text-youtube">*</span>
+            </span>
+            <input
+              id="spotify-playlist-id"
+              onFocus={() => setError("")}
+              value={spotifyPlaylist}
+              onChange={(e) => setSpotifyPlaylist(e.target.value)}
+              className="text-black rounded p-1 bg-white-primary border border-spotify"
+            />
             <label
               htmlFor="youtube-playlist-id"
+              className="flex text-sm gap-2 focus:border-transparent focus:ring-0"
+            />
+            <span>
+              Youtube playlist link<span className="text-youtube">*</span>
+            </span>
+            <input
+              id="youtube-playlist-id"
+              onFocus={() => setError("")}
+              value={youtubePlaylist}
+              onChange={(e) => setYoutubePlaylist(e.target.value)}
+              className="text-black rounded p-1 bg-white-primary border border-youtube"
+            />
+            <label
+              htmlFor="optional-query"
               className="flex flex-col text-sm gap-2  focus:border-transparent focus:ring-0"
-            >
-              Youtube playlist link
-              <input
-                id="youtube-playlist-id"
-                onFocus={() => setError("")}
-                value={youtubePlaylist}
-                onChange={(e) => setYoutubePlaylist(e.target.value)}
-                className="text-black rounded p-1 bg-white-primary border border-youtube"
-              />
-            </label>
+            />
+            <span>Optional query for each song</span>
+            <input
+              id="optional-query"
+              onFocus={() => setError("")}
+              value={optionalQuery}
+              onChange={(e) => setOptionalQuery(e.target.value)}
+              className="text-black rounded p-1 bg-white-primary"
+            />
             <button
               disabled={!!error || isConverting}
               className="w-fit mx-auto bg-white-primary text-black rounded px-4 py-1 mt-2 disabled:bg-neutral-400/80 disabled:cursor-not-allowed"
